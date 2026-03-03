@@ -34,7 +34,7 @@ declare global {
       kv: {
         get: (key: string) => Promise<string | null>;
         set: (key: string, value: string) => Promise<boolean>;
-        delete: (key: string) => Promise<boolean>;
+        del: (key: string) => Promise<boolean>;
         list: (pattern: string, returnValues?: boolean) => Promise<string[]>;
         flush: () => Promise<boolean>;
       };
@@ -73,7 +73,7 @@ interface PuterStore {
       options?: PuterChatOptions
     ) => Promise<AIResponse | undefined>;
     feedback: (
-      resumePath: string,
+      path: string,
       message: string
     ) => Promise<AIResponse | undefined>;
     img2txt: (
@@ -84,7 +84,7 @@ interface PuterStore {
   kv: {
     get: (key: string) => Promise<string | null | undefined>;
     set: (key: string, value: string) => Promise<boolean | undefined>;
-    delete: (key: string) => Promise<boolean | undefined>;
+    del: (key: string) => Promise<boolean | undefined>;
     list: (
       pattern: string,
       returnValues?: boolean
@@ -321,52 +321,27 @@ export const usePuterStore = create<PuterStore>((set, get) => {
       setError("Puter.js not available");
       return;
     }
+    // return puter.ai.chat(prompt, imageURL, testMode, options);
     return puter.ai.chat(prompt, imageURL, testMode, options) as Promise<
       AIResponse | undefined
     >;
   };
 
-  /**
-   * feedback() — reads the uploaded PDF from Puter.fs, converts it to base64,
-   * then sends it to puter.ai.chat() as a document alongside the analysis prompt.
-   * This is the correct pattern since puter.ai.feedback() does not exist.
-   */
-  const feedback = async (resumePath: string, message: string) => {
+  const feedback = async (path: string, message: string) => {
     const puter = getPuter();
     if (!puter) {
       setError("Puter.js not available");
       return;
     }
 
-    // Step 1: Read the PDF blob from Puter cloud storage
-    const blob = await puter.fs.read(resumePath);
-    if (!blob) throw new Error("Could not read resume file from Puter.fs");
-
-    // Step 2: Convert blob → base64 string
-    const base64 = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Strip the data URL prefix (e.g. "data:application/pdf;base64,")
-        resolve(result.split(",")[1]);
-      };
-      reader.onerror = () => reject(new Error("Failed to read file as base64"));
-      reader.readAsDataURL(blob);
-    });
-
-    // Step 3: Send to puter.ai.chat() with the PDF as a base64 document block
     return puter.ai.chat(
       [
         {
           role: "user",
           content: [
             {
-              type: "document",
-              source: {
-                type: "base64",
-                media_type: "application/pdf",
-                data: base64,
-              },
+              type: "file",
+              puter_path: path,
             },
             {
               type: "text",
@@ -375,7 +350,7 @@ export const usePuterStore = create<PuterStore>((set, get) => {
           ],
         },
       ],
-      { model: "claude-sonnet-4-5" }
+      { model: "claude-sonnet-4" }
     ) as Promise<AIResponse | undefined>;
   };
 
@@ -406,13 +381,13 @@ export const usePuterStore = create<PuterStore>((set, get) => {
     return puter.kv.set(key, value);
   };
 
-  const deleteKV = async (key: string) => {
+  const delKV = async (key: string) => {
     const puter = getPuter();
     if (!puter) {
       setError("Puter.js not available");
       return;
     }
-    return puter.kv.delete(key);
+    return puter.kv.del(key);
   };
 
   const listKV = async (pattern: string, returnValues?: boolean) => {
@@ -463,15 +438,14 @@ export const usePuterStore = create<PuterStore>((set, get) => {
         testMode?: boolean,
         options?: PuterChatOptions
       ) => chat(prompt, imageURL, testMode, options),
-      feedback: (resumePath: string, message: string) =>
-        feedback(resumePath, message),
+      feedback: (path: string, message: string) => feedback(path, message),
       img2txt: (image: string | File | Blob, testMode?: boolean) =>
         img2txt(image, testMode),
     },
     kv: {
       get: (key: string) => getKV(key),
       set: (key: string, value: string) => setKV(key, value),
-      delete: (key: string) => deleteKV(key),
+      del: (key: string) => delKV(key),
       list: (pattern: string, returnValues?: boolean) =>
         listKV(pattern, returnValues),
       flush: () => flushKV(),

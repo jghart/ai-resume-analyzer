@@ -31,7 +31,6 @@ export default function Home() {
       if (!auth.isAuthenticated || !puterReady) return;
 
       try {
-        // List all keys matching "resume:*"
         const keys = await kv.list("resume:*");
         if (!keys || keys.length === 0) {
           setResumes([]);
@@ -39,7 +38,6 @@ export default function Home() {
           return;
         }
 
-        // Fetch each resume's data
         const results = await Promise.all(
           (keys as string[]).map(async (key) => {
             const json = await kv.get(key);
@@ -52,7 +50,6 @@ export default function Home() {
           })
         );
 
-        // Filter out nulls and only show analyzed resumes
         const valid = results
           .filter((r): r is Resume => r !== null && r.status === "analyzed")
           .sort(
@@ -70,6 +67,11 @@ export default function Home() {
 
     fetchResumes();
   }, [auth.isAuthenticated, puterReady, kv]);
+
+  // Instantly removes the deleted card from state — no refetch needed
+  const handleDelete = (id: string) => {
+    setResumes((prev) => prev.filter((r) => r.id !== id));
+  };
 
   return (
     <main className="bg-[url('/images/bg-main.svg')] bg-cover min-h-screen">
@@ -90,7 +92,11 @@ export default function Home() {
         ) : resumes.length > 0 ? (
           <div className="resumes-section">
             {resumes.map((resume) => (
-              <ResumeCard key={resume.id} resume={resume} />
+              <ResumeCard
+                key={resume.id}
+                resume={resume}
+                onDelete={handleDelete}
+              />
             ))}
           </div>
         ) : (
