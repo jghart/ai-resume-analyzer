@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router";
 import type { Route } from "./+types/home";
 import Navbar from "../components/Navbar";
-import ResumeCard from "../components/ResumeCard";
+import ResumeCard, { ResumeCardSkeleton } from "../components/ResumeCard";
 import { usePuterStore } from "~/lib/puter";
 
 export function meta({}: Route.MetaArgs) {
@@ -68,7 +68,6 @@ export default function Home() {
     fetchResumes();
   }, [auth.isAuthenticated, puterReady, kv]);
 
-  // Instantly removes the deleted card from state — no refetch needed
   const handleDelete = (id: string) => {
     setResumes((prev) => prev.filter((r) => r.id !== id));
   };
@@ -84,10 +83,11 @@ export default function Home() {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-20">
-            <p className="text-xl text-gray-400 animate-pulse">
-              Loading your resumes...
-            </p>
+          // Skeleton cards — same grid layout as real cards
+          <div className="resumes-section">
+            {[...Array(4)].map((_, i) => (
+              <ResumeCardSkeleton key={i} />
+            ))}
           </div>
         ) : resumes.length > 0 ? (
           <div className="resumes-section">
@@ -101,6 +101,11 @@ export default function Home() {
           </div>
         ) : (
           <div className="flex flex-col items-center py-20 gap-4">
+            <img
+              src="/images/resume-scan-2.gif"
+              alt="No resumes"
+              className="w-48 opacity-60"
+            />
             <p className="text-xl text-gray-500">No resumes analyzed yet.</p>
             <button
               onClick={() => navigate("/upload")}

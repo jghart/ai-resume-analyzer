@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router';
+import { toast } from 'sonner';
 import ScoreCircle from '../components/ScoreCircle';
 import { usePuterStore } from '~/lib/puter';
 
@@ -7,6 +8,22 @@ interface ResumeCardProps {
   resume: Resume;
   onDelete: (id: string) => void;
 }
+
+// Skeleton placeholder shown while the thumbnail is loading
+export const ResumeCardSkeleton = () => (
+  <div className="resume-card animate-pulse">
+    <div className="resume-card-header">
+      <div className="flex flex-col gap-2 flex-1">
+        <div className="h-5 bg-gray-200 rounded w-3/4" />
+        <div className="h-4 bg-gray-200 rounded w-1/2" />
+      </div>
+      <div className="w-[100px] h-[100px] rounded-full bg-gray-200 flex-shrink-0" />
+    </div>
+    <div className="gradient-border">
+      <div className="w-full h-[350px] max-sm:h-[200px] bg-gray-200 rounded-lg" />
+    </div>
+  </div>
+);
 
 const ResumeCard = ({
   resume: { id, companyName, jobTitle, feedback, imagePath, resumePath },
@@ -41,7 +58,6 @@ const ResumeCard = ({
   }, [imagePath, fs]);
 
   const handleDelete = async (e: React.MouseEvent) => {
-    // Prevent the Link from navigating when clicking delete
     e.preventDefault();
     e.stopPropagation();
 
@@ -51,29 +67,31 @@ const ResumeCard = ({
     if (!confirmed) return;
 
     setIsDeleting(true);
+
+    const deleteToast = toast.loading('Deleting resume...');
+
     try {
-      // 1. Delete PDF from Puter.fs
       if (resumePath) {
         await fs.delete(resumePath).catch((err) =>
           console.warn('Could not delete PDF file:', err)
         );
       }
 
-      // 2. Delete thumbnail image from Puter.fs
       if (imagePath) {
         await fs.delete(imagePath).catch((err) =>
           console.warn('Could not delete thumbnail:', err)
         );
       }
 
-      // 3. Delete the KV entry
       await kv.del(`resume:${id}`);
 
-      // 4. Notify parent to remove card instantly from UI
+      toast.success('Resume deleted successfully', { id: deleteToast });
       onDelete(id);
     } catch (err) {
       console.error('Delete failed:', err);
-      alert('Failed to delete resume. Please try again.');
+      toast.error('Failed to delete resume. Please try again.', {
+        id: deleteToast,
+      });
       setIsDeleting(false);
     }
   };
