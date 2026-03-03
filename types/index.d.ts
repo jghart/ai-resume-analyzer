@@ -1,3 +1,5 @@
+type KanbanStage = "applied" | "interview" | "offer" | "rejected";
+
 interface Job {
   title: string;
   description: string;
@@ -12,6 +14,11 @@ interface Resume {
   imagePath: string;
   resumePath: string;
   feedback: Feedback;
+  status?: string;
+  stage?: KanbanStage;
+  createdAt?: string;
+  analyzedAt?: string;
+  jobDescription?: string;
 }
 
 interface Feedback {
@@ -55,4 +62,46 @@ interface Feedback {
       explanation: string;
     }[];
   };
+}
+
+interface KVItem {
+  key: string;
+  value: string;
+}
+
+interface FSItem {
+  path: string;
+  name: string;
+  is_dir?: boolean;
+}
+
+interface PuterUser {
+  username: string;
+  email?: string;
+}
+
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string | ContentBlock[];
+}
+
+interface ContentBlock {
+  type: string;
+  text?: string;
+  source?: {
+    type: string;
+    media_type: string;
+    data: string;
+  };
+}
+
+interface PuterChatOptions {
+  model?: string;
+}
+
+interface AIResponse {
+  message?: {
+    content: string | ContentBlock[];
+  };
+  content?: string | ContentBlock[];
 }
