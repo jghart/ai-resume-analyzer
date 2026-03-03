@@ -73,7 +73,7 @@ interface PuterStore {
       options?: PuterChatOptions
     ) => Promise<AIResponse | undefined>;
     feedback: (
-      path: string,
+      resumePath: string,
       message: string
     ) => Promise<AIResponse | undefined>;
     img2txt: (
@@ -321,27 +321,52 @@ export const usePuterStore = create<PuterStore>((set, get) => {
       setError("Puter.js not available");
       return;
     }
-    // return puter.ai.chat(prompt, imageURL, testMode, options);
     return puter.ai.chat(prompt, imageURL, testMode, options) as Promise<
       AIResponse | undefined
     >;
   };
 
-  const feedback = async (path: string, message: string) => {
+  /**
+   * feedback() — reads the uploaded PDF from Puter.fs, converts it to base64,
+   * then sends it to puter.ai.chat() as a document alongside the analysis prompt.
+   * This is the correct pattern since puter.ai.feedback() does not exist.
+   */
+  const feedback = async (resumePath: string, message: string) => {
     const puter = getPuter();
     if (!puter) {
       setError("Puter.js not available");
       return;
     }
 
+    // Step 1: Read the PDF blob from Puter cloud storage
+    const blob = await puter.fs.read(resumePath);
+    if (!blob) throw new Error("Could not read resume file from Puter.fs");
+
+    // Step 2: Convert blob → base64 string
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        // Strip the data URL prefix (e.g. "data:application/pdf;base64,")
+        resolve(result.split(",")[1]);
+      };
+      reader.onerror = () => reject(new Error("Failed to read file as base64"));
+      reader.readAsDataURL(blob);
+    });
+
+    // Step 3: Send to puter.ai.chat() with the PDF as a base64 document block
     return puter.ai.chat(
       [
         {
           role: "user",
           content: [
             {
-              type: "file",
-              puter_path: path,
+              type: "document",
+              source: {
+                type: "base64",
+                media_type: "application/pdf",
+                data: base64,
+              },
             },
             {
               type: "text",
@@ -350,7 +375,7 @@ export const usePuterStore = create<PuterStore>((set, get) => {
           ],
         },
       ],
-      { model: "claude-sonnet-4" }
+      { model: "claude-sonnet-4-5" }
     ) as Promise<AIResponse | undefined>;
   };
 
@@ -438,7 +463,8 @@ export const usePuterStore = create<PuterStore>((set, get) => {
         testMode?: boolean,
         options?: PuterChatOptions
       ) => chat(prompt, imageURL, testMode, options),
-      feedback: (path: string, message: string) => feedback(path, message),
+      feedback: (resumePath: string, message: string) =>
+        feedback(resumePath, message),
       img2txt: (image: string | File | Blob, testMode?: boolean) =>
         img2txt(image, testMode),
     },
