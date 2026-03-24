@@ -88,6 +88,7 @@ interface ChatMessage {
 interface ContentBlock {
   type: string;
   text?: string;
+  puter_path?: string;
   source?: {
     type: string;
     media_type: string;

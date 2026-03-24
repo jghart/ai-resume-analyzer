@@ -9,3 +9,6 @@
 # documents
 *.docx
 *.pdf
+
+# typecheck
+typecheck_output.txt    
